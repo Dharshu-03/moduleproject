@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import "./App.css";
 
+
+
 function App() {
 
   const [groups, setGroups] = useState(() => {
@@ -13,14 +15,15 @@ function App() {
     const savedSelected = localStorage.getItem("selectedGroupId");
     return savedSelected ? JSON.parse(savedSelected) : null;
   });
-
+  const selectedGroup = groups.find(g => g.id === selectedGroupId);
+  const hasNotes = selectedGroup && selectedGroup.notes.length > 0;
   const [noteText, setNoteText] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [groupName, setGroupName] = useState("");
+  const isTextEmpty = !noteText.trim();
 
-
-  const [groupColor, setGroupColor] = useState("#ff4d4d"); // default
-  const colors = ["#ff4d4d", "#4da6ff", "#4dff88", "#ffb84d", "#b84dff"];
+  const [groupColor, setGroupColor] = useState("#B38BFA"); // default
+  const colors = ["#B38BFA", "#FF79F2", "#43E6FC", "#F19576", "#0047FF", "#6691FF"];
 
 
 
@@ -75,26 +78,57 @@ function App() {
     setShowModal(false);
   };
 
-
-
   const addNote = () => {
     if (!noteText.trim() || selectedGroupId === null) return;
 
-    const updatedGroups = groups.map(group =>
+    const now = new Date();
+
+
+    const formattedDate = now.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+
+    const formattedTime = now.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }).replace(" ", "");
+
+    const newNote = {
+      id: Date.now(),
+      text: noteText,
+      date: formattedDate,
+      time: formattedTime,
+    };
+
+    const updatedGroups = groups.map((group) =>
       group.id === selectedGroupId
-        ? { ...group, notes: [noteText, ...group.notes] } // <-- prepend note
+        ? { ...group, notes: [newNote, ...group.notes] }
         : group
     );
 
     setGroups(updatedGroups);
     setNoteText("");
   };
+
+
   const getInitials = (name) => {
-    const words = name.trim().split(" ");
-    if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+    if (!name) return "";
+
+
+    const words = name.trim().split(/\s+/);
+
+    if (words.length === 1) {
+
+      return words[0][0].toUpperCase();
+    }
+
+
     return (words[0][0] + words[1][0]).toUpperCase();
   };
-  const selectedGroup = groups.find(g => g.id === selectedGroupId);
+
 
   return (
     <div className="container">
@@ -103,7 +137,7 @@ function App() {
         selectedGroupId === null ? (
 
           <div className="mobile-groups">
-
+            <h1>Pocket Notes</h1>
 
             {groups.map((group) => (
               <div
@@ -133,53 +167,74 @@ function App() {
           <div className="mobile-notes">
             <div className="mobile-header">
               <button
-                onClick={() =>
-                  setSelectedGroupId(null)
-                }
+                className="back-btn"
+                onClick={() => setSelectedGroupId(null)}
               >
                 ←
               </button>
-              <h3>{selectedGroup?.title}</h3>
+
+              <div
+                className="header-avatar"
+                style={{ backgroundColor: selectedGroup.color }}
+              >
+                {getInitials(selectedGroup.title)}
+              </div>
+
+              <h3 className="header-title">
+                {selectedGroup.title}
+              </h3>
             </div>
 
             <div className="notes">
-              {selectedGroup?.notes.map(
-                (note, index) => (
-                  <div
-                    key={index}
-                    className="note"
-                  >
-                    {note}
-                  </div>
-                )
-              )}
+              {selectedGroup?.notes.map((note) => (
+                <div key={note.id} className="note">
+                  <div>{note.text}</div>
+                  <small className="note-date">
+                    {note.date} • {note.time}
+                  </small>
+                </div>
+              ))}
             </div>
+            <form
+              className="input-section"
+              onSubmit={(e) => {
+                e.preventDefault();
+                addNote();
+              }}
+            >
+              <div className="input-cover">
+                <textarea
+                  type="text" id="inputmobile"
+                  value={noteText}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      addNote();
+                    }
+                  }}
+                  onChange={(e) => setNoteText(e.target.value)}
+                  placeholder="Enter your text here..........."
+                />
 
-            <div className="input-section">
-              <input
-                type="text" id="inputmobile"
-                value={noteText}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    addNote();
-                  }
-                }}
-                onChange={e =>
-                  setNoteText(e.target.value)
-                }
-                placeholder="Enter note..."
-              />
-              <button id="addbuttonmob" onClick={addNote}>
-                Add
-              </button>
-            </div>
+                <button
+                  type="submit"
+                  disabled={isTextEmpty}
+                  className={`send-button ${isTextEmpty ? "disabled" : ""}`}
+                >
+                  <img id="addbuttonmob"
+                    src="/images/send.png"
+                    alt="send"
+                  />
+                </button>
+              </div>
+            </form>
           </div>
         )
       ) : (
 
         <>
           <div className="sidebar">
-            <h3>Pocket Notes</h3>
+            <p>Pocket Notes</p>
 
             <div className="groups-list">
               {groups.map(group => (
@@ -209,69 +264,133 @@ function App() {
             </button>
           </div>
 
-          <div className="content">
-            <h2>{selectedGroup ? selectedGroup.title : "No Group Selected"}</h2>
-
-            <div className="notes">
-              {selectedGroup &&
-                selectedGroup.notes.map((note, index) => (
-                  <div key={index} className="note">
-                    {note}
-                  </div>
-                ))}
-            </div>
-
+          <div className={`content ${hasNotes ? "no-bg" : ""}`}>
             {selectedGroup && (
-              <div className="input-section">
-                <input
-                  type="text"
-                  id="ibar"
-                  value={noteText}
-                  onChange={(e) => setNoteText(e.target.value)}
-                  placeholder="Enter note..."
-                />
-                <button id="addbutton" onClick={addNote}>
-                  Add
-                </button>
+              <div className="notes-header">
+                <div
+                  className="header-avatar"
+                  style={{ backgroundColor: selectedGroup.color }}
+                >
+                  {getInitials(selectedGroup.title)}
+                </div>
+
+                <h3 className="header-title">
+                  {selectedGroup.title}
+                </h3>
               </div>
             )}
-          </div>
-        </>
-      )}
+            {!hasNotes && (
+              <div className="welcome-overlay">
+                <h1>Pocket Notes</h1>
+                <p>
+                  Send and receive messages without keeping your phone online.
+                  <br />
+                  Use Pocket Notes on up to 4 linked devices and 1 mobile phone
+                </p>
 
-      {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Create New Group</h3>
-            <input
-              type="text"
-              value={groupName}
-              onChange={(e) => setGroupName(e.target.value)}
-              placeholder="Enter group name"
-            />
-
-            <div className="color-picker">
-              {colors.map(color => (
-                <div
-                  key={color}
-                  className={`color-circle ${groupColor === color ? "selected" : ""}`}
-                  style={{ backgroundColor: color }}
-                  onClick={() => setGroupColor(color)}
-                />
+                <div className="lock-text">
+                  <img src="/images/lock3.png" alt="" />
+                  end-to-end encrypted
+                </div>
+              </div>
+            )}
+            <div className="notes">
+              {selectedGroup?.notes.map((note) => (
+                <div key={note.id} className="note">
+                  <div>{note.text}</div>
+                  <small className="note-date">
+                    {note.date} • {note.time}
+                  </small>
+                </div>
               ))}
             </div>
 
-            <div className="modal-buttons">
-              <button id="createbutton" onClick={createGroup}>Create</button>
+            {selectedGroup && (
+              <form
+                className="input-section"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  addNote();
+                }}
+              >
+                <div className="input-cover">
+                  <textarea
+                    type="text"
+                    id="ibar"
+                    value={noteText}
+                    onChange={(e) => setNoteText(e.target.value)}
+                    placeholder="Enter your text here..........."
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        addNote();
+                      }
+                    }}
+                  />
 
-            </div>
+                  <button
+                    type="button"
+                    disabled={isTextEmpty}
+                    onClick={addNote}
+                    className={`send-button ${isTextEmpty ? "disabled" : ""}`}
+                  >
+                    <img id="sendimg"
+                      src="/images/send.png"
+                      alt="send"
+                    />
+                  </button>
+
+                </div>
+              </form>
+            )}
           </div>
-        </div >
+        </>
       )
+      }
+
+      {
+        showModal && (
+          <div className="modal-overlay" onClick={() => setShowModal(false)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()}>
+              <h3>Create New Group</h3>
+              <br />
+              <p>Group Name</p>
+              <input
+                type="text"
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                placeholder="Enter group name"
+              />
+              <br />
+
+              <div className="color-picker">
+                <p >
+                  Choose Color
+                </p>
+                {colors.map(color => (
+                  <div
+                    key={color}
+                    className={`color-circle ${groupColor === color ? "selected" : ""}`}
+                    style={{ backgroundColor: color }}
+                    onClick={() => setGroupColor(color)}
+                  />
+                ))}
+              </div>
+
+              <div className="modal-buttons">
+
+                <button id="createbutton" onClick={createGroup}>Create</button>
+
+              </div>
+            </div>
+          </div >
+        )
       }
     </div >
 
   );
 }
+
+
 
 export default App;
